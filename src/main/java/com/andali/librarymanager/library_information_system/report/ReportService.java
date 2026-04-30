@@ -4,6 +4,7 @@ import com.andali.librarymanager.library_information_system.book.Book;
 import com.andali.librarymanager.library_information_system.book.BookRepository;
 import com.andali.librarymanager.library_information_system.fine.FineRepository;
 import com.andali.librarymanager.library_information_system.loan.Loan;
+import com.andali.librarymanager.library_information_system.loan.LoanDTO;
 import com.andali.librarymanager.library_information_system.loan.LoanRepository;
 import com.andali.librarymanager.library_information_system.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -90,31 +91,5 @@ public class ReportService {
                 .returnDate(loan.getReturnDate())
                 .status(loan.getStatus().name())
                 .build();
-    }
-}
-
-class LoanDTO {
-    public Long id;
-    public Long userId;
-    public String userFullName;
-    public Long bookId;
-    public String bookTitle;
-    public java.time.LocalDateTime borrowDate;
-    public java.time.LocalDateTime dueDate;
-    public java.time.LocalDateTime returnDate;
-    public String status;
-    
-    public LoanDTO(Long id, Long userId, String userFullName, Long bookId, String bookTitle, 
-                   java.time.LocalDateTime borrowDate, java.time.LocalDateTime dueDate, 
-                   java.time.LocalDateTime returnDate, String status) {
-        this.id = id;
-        this.userId = userId;
-        this.userFullName = userFullName;
-        this.bookId = bookId;
-        this.bookTitle = bookTitle;
-        this.borrowDate = borrowDate;
-        this.dueDate = dueDate;
-        this.returnDate = returnDate;
-        this.status = status;
     }
 }

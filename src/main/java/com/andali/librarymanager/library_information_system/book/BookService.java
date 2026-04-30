@@ -9,6 +9,7 @@ import com.andali.librarymanager.library_information_system.shelf.Shelf;
 import com.andali.librarymanager.library_information_system.shelf.ShelfRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -94,56 +95,16 @@ public class BookService {
     
     public Page<BookDTO> filterBooks(Long categoryId, Long authorId, String status, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Book> books;
-        
-        if (categoryId != null && authorId != null) {
-            books = bookRepository.findByCategoryId(categoryId).stream()
-                    .filter(b -> b.getAuthor().getId().equals(authorId))
-                    .filter(b -> status == null || b.getStatus().name().equals(status))
-                    .map(b -> b)
-                    .limit(pageable.getPageSize())
-                    .skip((long) pageable.getPageNumber() * pageable.getPageSize())
-                    .toList()
-                    .stream()
-                    .map(BookRepository::findById)
-                    .filter(o -> o.isPresent())
-                    .map(o -> o.get())
-                    .collect(java.util.stream.Collectors.toList())
-                    .stream()
-                    .map(this::mapToBookDTO)
-                    .map(b -> {
-                        return b;
-                    })
-                    .collect(() -> new org.springframework.data.domain.PageImpl<>(
-                            new java.util.ArrayList<>(),
-                            pageable, bookRepository.count()).map(x -> x),
-                    (c, b) -> {},
-                    (c1, c2) -> {}
-                    );
-        } else if (categoryId != null) {
-            books = bookRepository.findByCategoryId(categoryId).stream()
-                    .filter(b -> status == null || b.getStatus().name().equals(status))
-                    .map(this::mapToBookDTO)
-                    .collect(() -> new org.springframework.data.domain.PageImpl<>(
-                            new java.util.ArrayList<>(),
-                            pageable,
-                            bookRepository.findByCategoryId(categoryId).size()),
-                    (c, b) -> {},
-                    (c1, c2) -> {});
-        } else if (authorId != null) {
-            books = bookRepository.findByAuthorId(authorId).stream()
-                    .filter(b -> status == null || b.getStatus().name().equals(status))
-                    .map(this::mapToBookDTO)
-                    .collect(() -> new org.springframework.data.domain.PageImpl<>(
-                            new java.util.ArrayList<>(),
-                            pageable,
-                            bookRepository.findByAuthorId(authorId).size()),
-                    (c, b) -> {},
-                    (c1, c2) -> {});
-        } else {
-            books = bookRepository.findAll(pageable);
-        }
-        return books.map(this::mapToBookDTO);
+        List<BookDTO> filtered = bookRepository.findAll().stream()
+                .filter(b -> categoryId == null || b.getCategory().getId().equals(categoryId))
+                .filter(b -> authorId == null || b.getAuthor().getId().equals(authorId))
+                .filter(b -> status == null || b.getStatus().name().equals(status))
+                .map(this::mapToBookDTO)
+                .toList();
+
+        int start = Math.min(page * size, filtered.size());
+        int end = Math.min(start + size, filtered.size());
+        return new PageImpl<>(filtered.subList(start, end), pageable, filtered.size());
     }
     
     private BookDTO mapToBookDTO(Book book) {

@@ -10,6 +10,7 @@ import com.andali.librarymanager.library_information_system.user.User;
 import com.andali.librarymanager.library_information_system.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -114,18 +115,13 @@ public class LoanService {
     
     public Page<LoanDTO> getUserLoans(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return loanRepository.findByUserId(userId).stream()
+        List<LoanDTO> loans = loanRepository.findByUserId(userId).stream()
                 .map(this::mapToLoanDTO)
-                .collect(java.util.stream.Collectors.toList())
-                .stream()
-                .skip((long) page * size)
-                .limit(size)
-                .collect(() -> new org.springframework.data.domain.PageImpl<>(
-                        new java.util.ArrayList<>(),
-                        pageable,
-                        loanRepository.findByUserId(userId).size()),
-                (c, b) -> c.get().add(b),
-                (c1, c2) -> c1.get().addAll(c2.get()));
+                .toList();
+
+        int start = Math.min(page * size, loans.size());
+        int end = Math.min(start + size, loans.size());
+        return new PageImpl<>(loans.subList(start, end), pageable, loans.size());
     }
     
     public List<LoanDTO> getOverdueLoans() {

@@ -3,6 +3,7 @@ package com.andali.librarymanager.library_information_system.fine;
 import com.andali.librarymanager.library_information_system.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,18 +23,13 @@ public class FineService {
     
     public Page<FineDTO> getUserFines(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return fineRepository.findByLoanUserId(userId).stream()
+        List<FineDTO> fines = fineRepository.findByLoanUserId(userId).stream()
                 .map(this::mapToFineDTO)
-                .collect(java.util.stream.Collectors.toList())
-                .stream()
-                .skip((long) page * size)
-                .limit(size)
-                .collect(() -> new org.springframework.data.domain.PageImpl<>(
-                        new java.util.ArrayList<>(),
-                        pageable,
-                        fineRepository.findByLoanUserId(userId).size()),
-                (c, b) -> c.get().add(b),
-                (c1, c2) -> c1.get().addAll(c2.get()));
+                .toList();
+
+        int start = Math.min(page * size, fines.size());
+        int end = Math.min(start + size, fines.size());
+        return new PageImpl<>(fines.subList(start, end), pageable, fines.size());
     }
     
     public FineDTO payFine(Long fineId) {
