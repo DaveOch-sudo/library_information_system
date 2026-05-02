@@ -18,3 +18,8 @@ spring:
   h2:
     console:
       enabled: true
+
+jwt:
+  secret: test-secret-key-change-me
+  expiration: 86400000
+  refresh-expiration: 604800000

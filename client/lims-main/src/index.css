@@ -1,0 +1,67 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  /* Professional Slate & Blue Palette */
+  --color-primary: #2563eb; 
+  --color-on-primary: #ffffff;
+  
+  --color-secondary: #0f172a; 
+  --color-on-secondary: #f1f5f9;
+  
+  --color-surface: #f8fafc; 
+  --color-on-surface: #1e293b; 
+  --color-on-surface-variant: #64748b; 
+  
+  --color-outline: #e2e8f0; 
+  --color-outline-variant: #cbd5e1; 
+  
+  --color-error: #ef4444; 
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+
+  --spacing-sidebar: 256px;
+  --spacing-topbar: 64px;
+  --spacing-gutter: 2rem;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card-base {
+    @apply bg-white rounded-xl border border-outline shadow-sm overflow-hidden;
+  }
+  .display-kpi {
+    @apply text-3xl font-bold tracking-tight text-slate-900;
+  }
+  .headline-lg {
+    @apply text-2xl font-bold tracking-tight text-slate-900;
+  }
+  .headline-md {
+    @apply text-lg font-bold text-slate-800;
+  }
+  .body-sm {
+    @apply text-sm text-slate-500;
+  }
+  .label-xs {
+    @apply text-[11px] font-bold uppercase tracking-wider text-slate-500;
+  }
+  .input-base {
+    @apply block w-full px-4 py-2 border border-outline rounded-lg bg-slate-50 text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all;
+  }
+  .btn-primary {
+    @apply flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm;
+  }
+}
+

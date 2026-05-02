@@ -59,14 +59,33 @@ public class SecurityConfig {
             .exceptionHandling(exception -> exception.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
+                .requestMatchers(
+                    "/",
+                    "/index.html",
+                    "/static/**",
+                    "/assets/**",
+                    "/*.js",
+                    "/*.css",
+                    "/favicon.ico",
+                    "/manifest.json",
+
+                    // React routes
+                    "/login",
+                    "/register",
+                    "/dashboard",
+                    "/books/**",
+                    "/loans/**",
+                    "/reservations/**"
+                ).permitAll()
+                // swagger optional
+                .requestMatchers(
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**"
+                ).permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/swagger-ui/**").permitAll()
-                .requestMatchers("/v3/api-docs/**").permitAll()
-                .requestMatchers("/swagger-ui.html").permitAll()
-                .requestMatchers("/").permitAll()
-                .requestMatchers("/index.html").permitAll()
-                .requestMatchers("/static/**").permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/api/**").authenticated()
+                .anyRequest().permitAll()
+
             )
             .authenticationProvider(authenticationProvider());
         
