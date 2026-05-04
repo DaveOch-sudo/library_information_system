@@ -4,10 +4,13 @@ import com.andali.librarymanager.library_information_system.auth.UserDTO;
 import com.andali.librarymanager.library_information_system.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -50,5 +53,12 @@ public class UserController {
     public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.ok(ApiResponse.success("User deleted", null));
+    }
+    // In any controller, just to test
+    @GetMapping("/debug-routes")
+    @ResponseBody
+    public String debug(HttpServletRequest req) {
+        return "Path: " + req.getServletPath() + " | User: " + 
+            SecurityContextHolder.getContext().getAuthentication();
     }
 }

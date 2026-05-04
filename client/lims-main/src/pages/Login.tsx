@@ -23,7 +23,7 @@ export default function Login() {
     try {
       // Real API call
       const response = await api.post('/auth/login', data);
-      login(response.data);
+      login(response.data.data);
       navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Invalid credentials');
