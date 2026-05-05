@@ -12,9 +12,19 @@ interface RoleGuardProps {
 }
 
 export const RoleGuard = ({ allowedRoles }: RoleGuardProps) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-600 text-sm">
+        Loading session…
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
   if (!user || !allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />;

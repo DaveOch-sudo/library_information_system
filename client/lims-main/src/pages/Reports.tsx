@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   BarChart, 
   Download, 
@@ -12,18 +12,164 @@ import {
   ArrowUpRight, 
   Filter,
   PieChart as PieIcon,
-  Activity
+  Activity,
+  BookOpen,
+  Clock,
+  User as UserIcon,
+  AlertCircle,
+  TrendingUp,
+  Users,
+  DollarSign
 } from 'lucide-react';
+import api from '../api/axios';
+import { DataTable } from '../components/DataTable';
 import { cn } from '../utils/cn';
+import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState('inventory');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isLoading, setIsLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [borrowedBooks, setBorrowedBooks] = useState<any[]>([]);
+  const [overdueBooks, setOverdueBooks] = useState<any[]>([]);
+  const [userActivity, setUserActivity] = useState<any>(null);
+  const [selectedUserId, setSelectedUserId] = useState('');
 
   const reportTypes = [
-    { id: 'inventory', label: 'Catalog Analysis', icon: FileText },
-    { id: 'circulation', label: 'Circulation Trends', icon: Activity },
-    { id: 'financial', label: 'Fee collection', icon: BarChart },
-    { id: 'members', label: 'Member Activity', icon: PieIcon },
+    { id: 'dashboard', label: 'Dashboard Overview', icon: Activity },
+    { id: 'borrowed', label: 'Borrowed Books', icon: BookOpen },
+    { id: 'overdue', label: 'Overdue Books', icon: Clock },
+    { id: 'activity', label: 'User Activity', icon: Users },
+  ];
+
+  const fetchDashboard = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/reports/dashboard');
+      setDashboardData(response.data.data);
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const fetchBorrowedBooks = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/reports/borrowed-books');
+      setBorrowedBooks(response.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch borrowed books:', error);
+      toast.error('Failed to load borrowed books data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const fetchOverdueBooks = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/reports/overdue-books');
+      setOverdueBooks(response.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch overdue books:', error);
+      toast.error('Failed to load overdue books data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const fetchUserActivity = useCallback(async () => {
+    if (!selectedUserId) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await api.get(`/reports/user-activity/${selectedUserId}`);
+      setUserActivity(response.data.data);
+    } catch (error) {
+      console.error('Failed to fetch user activity:', error);
+      toast.error('Failed to load user activity data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedUserId]);
+
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      fetchDashboard();
+    } else if (activeTab === 'borrowed') {
+      fetchBorrowedBooks();
+    } else if (activeTab === 'overdue') {
+      fetchOverdueBooks();
+    }
+  }, [activeTab, fetchDashboard, fetchBorrowedBooks, fetchOverdueBooks]);
+
+  useEffect(() => {
+    if (activeTab === 'activity' && selectedUserId) {
+      fetchUserActivity();
+    }
+  }, [activeTab, selectedUserId, fetchUserActivity]);
+
+  const handleUserActivitySearch = () => {
+    if (selectedUserId.trim()) {
+      fetchUserActivity();
+    }
+  };
+
+  const loanColumns = [
+    {
+      header: 'Book',
+      key: 'book',
+      render: (loan: any) => (
+        <div className="flex items-center space-x-3">
+          <div className="h-8 w-8 bg-slate-100 rounded flex items-center justify-center">
+            <BookOpen className="h-4 w-4 text-slate-400" />
+          </div>
+          <div>
+            <p className="font-bold text-slate-900">{loan.bookTitle ?? loan.book?.title ?? '—'}</p>
+            <p className="text-xs text-slate-400">{loan.bookIsbn ?? loan.book?.isbn ?? '—'}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Member',
+      key: 'user',
+      render: (loan: any) => (
+        <div className="flex items-center space-x-2">
+          <UserIcon className="h-4 w-4 text-slate-400" />
+          <div>
+            <p className="text-sm font-bold text-slate-700">{loan.userName ?? loan.userFullName ?? loan.user?.fullName ?? '—'}</p>
+            <p className="text-[10px] uppercase text-slate-400 tracking-tighter">{loan.userRole ?? loan.user?.role ?? '—'}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Borrow Date',
+      key: 'borrowDate',
+      render: (loan: any) => (
+        <div className="text-sm text-slate-600">
+          {loan.borrowDate ? new Date(loan.borrowDate).toLocaleDateString() : '—'}
+        </div>
+      ),
+    },
+    {
+      header: 'Due Date',
+      key: 'dueDate',
+      render: (loan: any) => (
+        <div className={cn(
+          "text-sm font-bold",
+          loan.status === 'OVERDUE' ? "text-red-500" : "text-slate-600"
+        )}>
+          {loan.dueDate ? new Date(loan.dueDate).toLocaleDateString() : '—'}
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -77,39 +223,153 @@ export default function Reports() {
 
         {/* Report Content */}
         <div className="lg:col-span-3 space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-             <div className="flex justify-between items-center mb-8">
-                <h3 className="text-xl font-bold text-slate-900 capitalize">{activeTab.replace('-', ' ')}</h3>
-                <button className="text-blue-600 text-xs font-bold uppercase tracking-widest flex items-center hover:underline bg-transparent">
-                   <Filter className="mr-1 h-3 w-3" /> Advance Filters
-                </button>
-             </div>
-             
-             {/* Dynamic Content based on tab */}
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="h-64 bg-slate-50 rounded-xl border border-slate-100 p-6 flex flex-col justify-end">
-                   <div className="flex space-x-2 items-end h-full mb-4">
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+              {dashboardData && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Total Books</p>
+                      <BookOpen className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <p className="text-2xl font-bold text-slate-900">{dashboardData.totalBooks || 0}</p>
+                  </div>
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Borrowed</p>
+                      <TrendingUp className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-blue-600">{dashboardData.borrowedBooks || 0}</p>
+                  </div>
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Available</p>
+                      <Activity className="h-4 w-4 text-emerald-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-emerald-600">{dashboardData.availableBooks || 0}</p>
+                  </div>
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Overdue</p>
+                      <AlertCircle className="h-4 w-4 text-red-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-red-600">{dashboardData.overdueBooks || 0}</p>
+                  </div>
+                </div>
+              )}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+                <h3 className="text-xl font-bold text-slate-900 mb-6">Dashboard Overview</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="h-64 bg-slate-50 rounded-xl border border-slate-100 p-6 flex flex-col justify-end">
+                    <div className="flex space-x-2 items-end h-full mb-4">
                       {[40, 70, 45, 90, 65, 80, 50].map((h, i) => (
                         <div key={i} className="flex-1 bg-blue-500 group-hover:bg-blue-600 transition-colors rounded-t-sm" style={{ height: `${h}%` }}></div>
                       ))}
-                   </div>
-                   <p className="text-center font-bold text-slate-400 text-[10px] uppercase tracking-widest">Temporal Density (7 Days)</p>
+                    </div>
+                    <p className="text-center font-bold text-slate-400 text-[10px] uppercase tracking-widest">Weekly Activity</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="p-6 bg-blue-50/50 rounded-xl border border-blue-100">
+                      <p className="text-blue-600 text-[10px] font-bold uppercase tracking-widest mb-1">Total Users</p>
+                      <p className="text-3xl font-bold text-slate-900">{dashboardData?.totalUsers || 0}</p>
+                      <p className="text-emerald-600 text-xs mt-2 font-medium">Active members</p>
+                    </div>
+                    <div className="p-6 bg-slate-50/50 rounded-xl border border-slate-100">
+                      <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Total Fines</p>
+                      <p className="text-3xl font-bold text-slate-900">{dashboardData?.totalFines || 0}</p>
+                      <p className="text-blue-600 text-xs mt-2 font-medium">Outstanding payments</p>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="grid grid-cols-1 gap-4">
-                   <div className="p-6 bg-blue-50/50 rounded-xl border border-blue-100">
-                      <p className="text-blue-600 text-[10px] font-bold uppercase tracking-widest mb-1">Performance Index</p>
-                      <p className="text-3xl font-bold text-slate-900">94.8%</p>
-                      <p className="text-emerald-600 text-xs mt-2 font-medium">+2.4% vs Previous Term</p>
-                   </div>
-                   <div className="p-6 bg-slate-50/50 rounded-xl border border-slate-100">
-                      <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Efficiency Churn</p>
-                      <p className="text-3xl font-bold text-slate-900">0.12%</p>
-                      <p className="text-blue-600 text-xs mt-2 font-medium">Optimal Rating</p>
-                   </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'borrowed' && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-slate-900">Borrowed Books Report</h3>
+                <p className="text-sm text-slate-500">{borrowedBooks.length} books currently borrowed</p>
+              </div>
+              <DataTable columns={loanColumns} data={borrowedBooks} isLoading={isLoading} />
+            </div>
+          )}
+
+          {activeTab === 'overdue' && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-slate-900">Overdue Books Report</h3>
+                <p className="text-sm text-red-500">{overdueBooks.length} books overdue</p>
+              </div>
+              <DataTable columns={loanColumns} data={overdueBooks} isLoading={isLoading} />
+            </div>
+          )}
+
+          {activeTab === 'activity' && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-slate-900 mb-4">User Activity Report</h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter User ID"
+                    value={selectedUserId}
+                    onChange={(e) => setSelectedUserId(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:bg-white transition-all"
+                  />
+                  <button
+                    onClick={handleUserActivitySearch}
+                    className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    Search
+                  </button>
                 </div>
-             </div>
-          </div>
+              </div>
+              
+              {userActivity && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-6 bg-blue-50/50 rounded-xl border border-blue-100">
+                      <p className="text-blue-600 text-[10px] font-bold uppercase tracking-widest mb-1">Total Loans</p>
+                      <p className="text-3xl font-bold text-slate-900">{userActivity.totalLoans || 0}</p>
+                    </div>
+                    <div className="p-6 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                      <p className="text-emerald-600 text-[10px] font-bold uppercase tracking-widest mb-1">Active Loans</p>
+                      <p className="text-3xl font-bold text-slate-900">{userActivity.activeLoans || 0}</p>
+                    </div>
+                    <div className="p-6 bg-red-50/50 rounded-xl border border-red-100">
+                      <p className="text-red-600 text-[10px] font-bold uppercase tracking-widest mb-1">Overdue</p>
+                      <p className="text-3xl font-bold text-slate-900">{userActivity.overdueLoans || 0}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-6 bg-purple-50/50 rounded-xl border border-purple-100">
+                      <p className="text-purple-600 text-[10px] font-bold uppercase tracking-widest mb-1">Total Fines</p>
+                      <p className="text-3xl font-bold text-slate-900">${userActivity.totalFines || 0}</p>
+                    </div>
+                    <div className="p-6 bg-amber-50/50 rounded-xl border border-amber-100">
+                      <p className="text-amber-600 text-[10px] font-bold uppercase tracking-widest mb-1">Reservations</p>
+                      <p className="text-3xl font-bold text-slate-900">{userActivity.totalReservations || 0}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {!userActivity && selectedUserId && !isLoading && (
+                <div className="text-center py-8">
+                  <UserIcon className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500">No activity data found for this user</p>
+                </div>
+              )}
+              
+              {!selectedUserId && (
+                <div className="text-center py-8">
+                  <UserIcon className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500">Enter a user ID to view activity report</p>
+                </div>
+              )}
+            </div>
+          )}
           
           <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
              <div className="relative z-10 max-w-md">

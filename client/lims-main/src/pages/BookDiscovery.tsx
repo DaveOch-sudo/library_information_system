@@ -18,8 +18,10 @@ import api from "../api/axios";
 import { Book } from "../types";
 import toast from "react-hot-toast";
 import { cn } from "../utils/cn";
+import { useAuth } from "../context/AuthContext";
 
 export default function BookDiscovery() {
+  const { user } = useAuth();
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -47,8 +49,12 @@ export default function BookDiscovery() {
   }, []);
 
   const handleBorrow = async (bookId: number) => {
+    if (!user?.id) {
+      toast.error("You must be signed in to borrow.");
+      return;
+    }
     try {
-      await api.post(`/loans/borrow/${bookId}`);
+      await api.post("/loans/borrow", { userId: user.id, bookId });
       toast.success("Borrowing request initiated!");
       // refresh books so availableCopies updates
       const response = await api.get("/books");

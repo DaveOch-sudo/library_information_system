@@ -3,15 +3,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, UserRole, AuthResponse } from '../types';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from 'react';
+import { User, AuthResponse } from '../types';
 import toast from 'react-hot-toast';
+import api from '../api/axios';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (data: AuthResponse) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -23,20 +32,63 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user');
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    toast.success('Logged out successfully');
+  }, []);
+
+  const refreshUser = useCallback(async () => {
     const savedToken = localStorage.getItem('token');
-    if (savedUser && savedToken) {
+    if (!savedToken) return;
+    try {
+      const { data } = await api.get('/auth/me');
+      const me = data.data as User;
+      setUser(me);
+      localStorage.setItem('user', JSON.stringify(me));
+    } catch {
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const bootstrap = async () => {
+      const savedToken = localStorage.getItem('token');
+      if (!savedToken) {
+        if (!cancelled) setIsLoading(false);
+        return;
+      }
+
+      if (!cancelled) setToken(savedToken);
+
       try {
-        setUser(JSON.parse(savedUser));
-        setToken(savedToken);
+        const { data } = await api.get('/auth/me');
+        if (cancelled) return;
+        const me = data.data as User;
+        setUser(me);
+        localStorage.setItem('user', JSON.stringify(me));
       } catch {
-        // corrupted localStorage — clear it and start fresh
+        if (cancelled) return;
         localStorage.removeItem('user');
         localStorage.removeItem('token');
+        setUser(null);
+        setToken(null);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    };
+
+    bootstrap();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = (data: AuthResponse) => {
@@ -47,14 +99,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     toast.success(`Welcome back, ${data.user.fullName}!`);
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    toast.success('Logged out successfully');
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -62,8 +106,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         token,
         login,
         logout,
+        refreshUser,
         isAuthenticated: !!token,
-        isLoading
+        isLoading,
       }}
     >
       {children}

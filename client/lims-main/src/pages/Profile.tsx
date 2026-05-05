@@ -4,14 +4,81 @@
  */
 
 import { useState, useEffect } from 'react';
-import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
-import { User, Shield, Mail, Phone, Lock, Save, Camera, ArrowRight } from 'lucide-react';
+import { User, Lock, Save, Camera, ArrowRight, Mail, Phone } from 'lucide-react';
+import api from '../api/axios';
 import toast from 'react-hot-toast';
 
 export default function Profile() {
-  const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const { user, refreshUser } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    contactNumber: ''
+  });
+
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        fullName: user.fullName || '',
+        email: user.email || '',
+        contactNumber: user.contactNumber || ''
+      });
+    }
+  }, [user]);
+
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    if (user) {
+      setFormData({
+        fullName: user.fullName || '',
+        email: user.email || '',
+        contactNumber: user.contactNumber || ''
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+    
+    if (!formData.fullName.trim()) {
+      toast.error('Full name is required');
+      return;
+    }
+    
+    if (!formData.email.trim()) {
+      toast.error('Email is required');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      await api.put(`/users/${user.id}`, {
+        fullName: formData.fullName.trim(),
+        email: formData.email.trim(),
+        contact: formData.contactNumber.trim() || null,
+        role: user.role // Keep the same role
+      });
+      
+      toast.success('Profile updated successfully!');
+      setIsEditing(false);
+      refreshUser(); // Refresh user data
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -55,61 +122,135 @@ export default function Profile() {
 
         {/* Right: Settings Form */}
         <div className="lg:col-span-2 space-y-8">
-            <section className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-3 mb-8">
+          <section className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-50 rounded-lg">
                   <User className="h-5 w-5 text-primary" />
                 </div>
                 <h4 className="text-lg font-bold text-slate-900">Personal Information</h4>
               </div>
+              {!isEditing && (
+                <button
+                  onClick={handleEdit}
+                  className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Edit Profile
+                </button>
+              )}
+            </div>
 
-              <form className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-                <div className="space-y-2">
-                  <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Full Name</label>
-                  <input className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm shadow-inner" value={user?.fullName} readOnly />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Institutional Email</label>
-                  <input className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm shadow-inner" value={user?.email} readOnly />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Contact Number</label>
-                  <input className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm shadow-inner" value={user?.contactNumber || 'Not provided'} />
+            {isEditing ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                      <User className="h-3 w-3" /> Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm"
+                      placeholder="Enter your full name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                      <Mail className="h-3 w-3" /> Institutional Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm"
+                      placeholder="Enter your email"
+                    />
+                  </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                      <Phone className="h-3 w-3" /> Contact Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.contactNumber}
+                      onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm"
+                      placeholder="Enter your contact number (optional)"
+                    />
+                  </div>
                 </div>
 
-                <div className="sm:col-span-2 pt-4">
-                  <button className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all text-sm">
-                    <Save className="h-4 w-4" /> Save Changes
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={handleSave}
+                    disabled={isSubmitting}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all text-sm disabled:opacity-50"
+                  >
+                    <Save className="h-4 w-4" /> {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    disabled={isSubmitting}
+                    className="px-6 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200 transition-all text-sm disabled:opacity-50"
+                  >
+                    Cancel
                   </button>
                 </div>
-              </form>
-            </section>
-
-            <section className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="p-2 bg-red-50 rounded-lg">
-                  <Lock className="h-5 w-5 text-red-500" />
-                </div>
-                <h4 className="text-lg font-bold text-slate-900">Security Access</h4>
               </div>
-
-              <div className="space-y-6">
-                  <div className="flex justify-between items-center p-5 bg-slate-50 border border-slate-100 rounded-2xl transition-all hover:border-slate-200">
-                    <div>
-                      <p className="font-bold text-slate-800 text-sm">Two-Factor Authentication</p>
-                      <p className="text-xs text-slate-500">Secure your account with an extra verification step.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Full Name</label>
+                    <div className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm shadow-inner">
+                      {user?.fullName || '—'}
                     </div>
-                    <button className="px-4 py-1.5 bg-white border border-slate-200 text-slate-600 text-[10px] font-bold rounded-lg uppercase tracking-wider hover:bg-slate-50 transition-colors">Enable</button>
                   </div>
-                  
-                  <div className="flex justify-between items-center group cursor-pointer">
-                    <p className="text-sm font-semibold text-slate-700 group-hover:text-primary transition-colors">Credential Management</p>
-                    <button className="text-primary font-bold text-xs flex items-center hover:underline">
-                      Update Password <ArrowRight className="ml-2 h-3 w-3" />
-                    </button>
+                  <div className="space-y-2">
+                    <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Institutional Email</label>
+                    <div className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm shadow-inner">
+                      {user?.email || '—'}
+                    </div>
                   </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Contact Number</label>
+                    <div className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm shadow-inner">
+                      {user?.contactNumber || 'Not provided'}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </section>
+            )}
+          </section>
+
+          <section className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2 bg-red-50 rounded-lg">
+                <Lock className="h-5 w-5 text-red-500" />
+              </div>
+              <h4 className="text-lg font-bold text-slate-900">Security Access</h4>
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex justify-between items-center p-5 bg-slate-50 border border-slate-100 rounded-2xl transition-all hover:border-slate-200">
+                <div>
+                  <p className="font-bold text-slate-800 text-sm">Two-Factor Authentication</p>
+                  <p className="text-xs text-slate-500">Secure your account with an extra verification step.</p>
+                </div>
+                <button className="px-4 py-1.5 bg-white border border-slate-200 text-slate-600 text-[10px] font-bold rounded-lg uppercase tracking-wider hover:bg-slate-50 transition-colors" disabled>
+                  Coming Soon
+                </button>
+              </div>
+              
+              <div className="flex justify-between items-center group cursor-pointer">
+                <p className="text-sm font-semibold text-slate-700 group-hover:text-primary transition-colors">Credential Management</p>
+                <button className="text-primary font-bold text-xs flex items-center hover:underline">
+                  Update Password <ArrowRight className="ml-2 h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </div>

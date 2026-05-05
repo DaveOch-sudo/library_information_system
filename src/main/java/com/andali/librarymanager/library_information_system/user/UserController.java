@@ -17,10 +17,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/users")
 @Tag(name = "Users", description = "User management endpoints")
 public class UserController {
-    
+
     @Autowired
     private UserService userService;
-    
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get all users")
@@ -30,7 +30,7 @@ public class UserController {
         Page<UserDTO> users = userService.getAllUsers(page, size);
         return ResponseEntity.ok(ApiResponse.success("Users retrieved", users));
     }
-    
+
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get user by ID")
@@ -38,15 +38,15 @@ public class UserController {
         UserDTO user = userService.getUserById(id);
         return ResponseEntity.ok(ApiResponse.success("User retrieved", user));
     }
-    
+
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('LIBRARIAN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('LIBRARIAN') or (hasRole('STUDENT') and #id == authentication.principal.id)")
     @Operation(summary = "Update user")
     public ResponseEntity<ApiResponse<UserDTO>> updateUser(@PathVariable Long id, @RequestBody UserDTO userDTO) {
         UserDTO updated = userService.updateUser(id, userDTO);
         return ResponseEntity.ok(ApiResponse.success("User updated", updated));
     }
-    
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Delete user")
@@ -54,11 +54,13 @@ public class UserController {
         userService.deleteUser(id);
         return ResponseEntity.ok(ApiResponse.success("User deleted", null));
     }
+
     // In any controller, just to test
     @GetMapping("/debug-routes")
+    @PreAuthorize("hasRole('ADMIN')")
     @ResponseBody
     public String debug(HttpServletRequest req) {
-        return "Path: " + req.getServletPath() + " | User: " + 
-            SecurityContextHolder.getContext().getAuthentication();
+        return "Path: " + req.getServletPath() + " | User: " +
+                SecurityContextHolder.getContext().getAuthentication();
     }
 }

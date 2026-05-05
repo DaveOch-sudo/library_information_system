@@ -14,7 +14,10 @@ import {
   Plus, 
   HelpCircle,
   LogOut,
-  Wallet
+  Wallet,
+  Tag,
+  MapPin,
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
@@ -44,6 +47,18 @@ export const Sidebar = () => {
       roles: [UserRole.ADMIN, UserRole.LIBRARIAN]
     },
     {
+      title: 'Categories',
+      icon: Tag,
+      path: '/categories',
+      roles: [UserRole.ADMIN, UserRole.LIBRARIAN]
+    },
+    {
+      title: 'Shelves',
+      icon: MapPin,
+      path: '/shelves',
+      roles: [UserRole.ADMIN, UserRole.LIBRARIAN]
+    },
+    {
       title: 'Search Books',
       icon: BookOpen,
       path: '/discovery',
@@ -68,18 +83,18 @@ export const Sidebar = () => {
       roles: [UserRole.ADMIN, UserRole.LIBRARIAN, UserRole.STUDENT]
     },
     {
+      title: user?.role === UserRole.STUDENT ? 'My Reservations' : 'Reservations',
+      icon: Calendar,
+      path: '/reservations',
+      roles: [UserRole.ADMIN, UserRole.LIBRARIAN, UserRole.STUDENT]
+    },
+    {
       title: 'Reports',
       icon: BarChart3,
       path: '/reports',
       roles: [UserRole.ADMIN, UserRole.LIBRARIAN]
     },
-    {
-      title: 'Settings',
-      icon: Settings,
-      path: '/settings',
-      roles: [UserRole.ADMIN, UserRole.LIBRARIAN, UserRole.STUDENT]
-    }
-  ];
+      ];
 
   const filteredItems = menuItems.filter(item => user && item.roles.includes(user.role));
 

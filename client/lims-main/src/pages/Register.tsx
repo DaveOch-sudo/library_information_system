@@ -146,7 +146,7 @@ export default function Register() {
                   >
                     <option value="STUDENT">Student</option>
                     <option value="LIBRARIAN">Librarian</option>
-                    <option value="ADMIN">Librarian</option>
+                    <option value="ADMIN">Admin</option>
                   </select>
                 </div>
               </div>

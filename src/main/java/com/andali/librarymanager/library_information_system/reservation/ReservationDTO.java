@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Data
@@ -16,7 +17,15 @@ public class ReservationDTO {
     private Long id;
     private Long userId;
     private String userFullName;
+    private Long bookId;
+    private String bookTitle;
+    private String bookIsbn;
+    private Boolean bookHasEbook;
     private LocalDateTime reservationDate;
+    private LocalDateTime approvedAt;
+    private LocalDate returnDate;
+    private Long approvedBy;
+    private String approvedByName;
     private String status;
     private List<ReservedBookDTO> books;
 }

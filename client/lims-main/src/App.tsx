@@ -22,6 +22,9 @@ import Users from './pages/Users';
 import Reports from './pages/Reports';
 import BookDiscovery from './pages/BookDiscovery';
 import Authors from './pages/Authors';
+import Categories from './pages/Categories';
+import Shelves from './pages/Shelves';
+import Reservations from './pages/Reservations';
 import Profile from './pages/Profile';
 import Unauthorized from './pages/Unauthorized';
 
@@ -45,6 +48,7 @@ export default function App() {
               {/* Common Roles */}
               <Route path="/loans" element={<Loans />} />
               <Route path="/fines" element={<Fines />} />
+              <Route path="/reservations" element={<Reservations />} />
 
               {/* Student specific */}
               <Route element={<RoleGuard allowedRoles={[UserRole.STUDENT]} />}>
@@ -55,6 +59,8 @@ export default function App() {
               <Route element={<RoleGuard allowedRoles={[UserRole.ADMIN, UserRole.LIBRARIAN]} />}>
                 <Route path="/books" element={<Books />} />
                 <Route path="/authors" element={<Authors />} />
+                <Route path="/categories" element={<Categories />} />
+                <Route path="/shelves" element={<Shelves />} />
                 <Route path="/reports" element={<Reports />} />
               </Route>
 

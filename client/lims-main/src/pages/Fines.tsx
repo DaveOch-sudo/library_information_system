@@ -3,22 +3,38 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { Fine } from '../types';
 import { DataTable } from '../components/DataTable';
 import { Wallet, AlertCircle, CheckCircle, Receipt } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../utils/cn';
+import { useAuth } from '../context/AuthContext';
+import { UserRole } from '../types';
 
 export default function Fines() {
+  const { user } = useAuth();
+  const canMarkPaid = user?.role === UserRole.ADMIN || user?.role === UserRole.LIBRARIAN;
+  const [staffView, setStaffView] = useState<"all" | "unpaid">("all");
   const [fines, setFines] = useState<Fine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchFines = async () => {
+  const fetchFines = useCallback(async () => {
+    if (!user?.id) {
+      setFines([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
-      const response = await api.get('/fines');
+      const params = { page: 0, size: 50 };
+      const isStaff = user.role === UserRole.ADMIN || user.role === UserRole.LIBRARIAN;
+      const response = isStaff
+        ? staffView === "unpaid"
+          ? await api.get("/fines/unpaid")
+          : await api.get('/fines', { params })
+        : await api.get(`/fines/user/${user.id}`, { params });
       const payload = response.data.data;
       const fineList = Array.isArray(payload)
         ? payload
@@ -32,15 +48,15 @@ export default function Fines() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id, user?.role, staffView]);
 
   useEffect(() => {
     fetchFines();
-  }, []);
+  }, [fetchFines]);
 
   const handlePay = async (id: number) => {
     try {
-      await api.patch(`/fines/${id}/pay`);
+      await api.put(`/fines/pay/${id}`);
       toast.success('Payment processed successfully!');
       fetchFines();
     } catch (error: any) {
@@ -114,13 +130,15 @@ export default function Fines() {
       key: 'actions',
       render: (fine: any) => (
         <div className="flex items-center space-x-2">
-          {fine.status === 'UNPAID' ? (
+          {fine.status === 'UNPAID' && canMarkPaid ? (
             <button
               onClick={() => handlePay(fine.id)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-all text-xs font-bold shadow-sm"
             >
               <Wallet className="mr-2 h-3 w-3" /> Execute Payment
             </button>
+          ) : fine.status === 'UNPAID' ? (
+            <span className="text-xs text-slate-400 font-medium">Awaiting staff</span>
           ) : (
             <button className="flex items-center px-4 py-2 text-slate-400 border border-slate-200 rounded text-xs font-bold">
               <Receipt className="mr-2 h-3 w-3" /> View Invoice
@@ -146,7 +164,37 @@ export default function Fines() {
           <p className="text-sm text-slate-500">Monitor and collect late fees and administrative fines.</p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col items-end gap-3">
+          {canMarkPaid && (
+            <div className="flex bg-white rounded-xl border border-slate-200 p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setStaffView("all")}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors",
+                  staffView === "all"
+                    ? "bg-primary text-white"
+                    : "text-slate-600 hover:bg-slate-50"
+                )}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setStaffView("unpaid")}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors",
+                  staffView === "unpaid"
+                    ? "bg-red-600 text-white"
+                    : "text-slate-600 hover:bg-slate-50"
+                )}
+              >
+                Unpaid
+              </button>
+            </div>
+          )}
+
+          <div className="flex gap-3">
           <div className="bg-white border border-slate-200 px-5 py-3 rounded-xl text-center shadow-sm">
             <div className="text-xl font-bold text-red-500">{unpaidCount}</div>
             <div className="text-[9px] uppercase font-bold tracking-widest text-slate-400">Unpaid</div>
@@ -164,6 +212,7 @@ export default function Fines() {
               <div className="text-xl font-bold">${totalOutstanding.toFixed(2)}</div>
             </div>
           </div>
+        </div>
         </div>
       </header>
 

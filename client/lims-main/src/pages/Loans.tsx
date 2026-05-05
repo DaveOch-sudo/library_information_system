@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import api from "../api/axios";
-import { Loan } from "../types";
+import { Loan, UserRole } from "../types";
 import { DataTable } from "../components/DataTable";
+import { useAuth } from "../context/AuthContext";
 import {
   Calendar,
   Clock,
@@ -18,44 +19,65 @@ import toast from "react-hot-toast";
 import { cn } from "../utils/cn";
 
 export default function Loans() {
+  const { user } = useAuth();
+  const isStaff =
+    user?.role === UserRole.ADMIN || user?.role === UserRole.LIBRARIAN;
+  const [staffView, setStaffView] = useState<"all" | "overdue">("all");
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchLoans = async () => {
+  const fetchLoans = useCallback(async () => {
+    if (!user?.id) {
+      setLoans([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
-      const response = await api.get("/loans");
-      const payload = response.data.data;
-      const loanList = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.content)
-        ? payload.content
-        : [];
-      setLoans(loanList);
+      if (isStaff && staffView === "overdue") {
+        const response = await api.get("/loans/overdue");
+        const payload = response.data.data;
+        setLoans(Array.isArray(payload) ? payload : []);
+      } else {
+        const params = { page: 0, size: 50 };
+        const response = isStaff
+          ? await api.get("/loans", { params })
+          : await api.get(`/loans/user/${user.id}`, { params });
+        const payload = response.data.data;
+        const loanList = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.content)
+          ? payload.content
+          : [];
+        setLoans(loanList);
+      }
     } catch (error) {
       console.error(error);
       setLoans([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id, user?.role, isStaff, staffView]);
 
   useEffect(() => {
     fetchLoans();
-  }, []);
+  }, [fetchLoans]);
 
-  const handleReturn = async (id: number) => {
-    try {
-      await api.post(`/loans/return/${id}`);
-      toast.success("Book returned successfully!");
-      fetchLoans();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Return failed");
-    }
-  };
+  const handleReturn = useCallback(
+    async (id: number) => {
+      try {
+        await api.post(`/loans/return/${id}`);
+        toast.success("Book returned successfully!");
+        fetchLoans();
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Return failed");
+      }
+    },
+    [fetchLoans]
+  );
 
-  const columns = [
-    {
+  const columns = useMemo(() => {
+    const bookCol = {
       header: "Borrowed Resource",
       key: "book",
       render: (loan: any) => (
@@ -73,8 +95,9 @@ export default function Loans() {
           </div>
         </div>
       ),
-    },
-    {
+    };
+
+    const memberCol = {
       header: "Member Identity",
       key: "user",
       render: (loan: any) => (
@@ -90,7 +113,9 @@ export default function Loans() {
           </div>
         </div>
       ),
-    },
+    };
+
+    const rest = [
     {
       header: "Timeline",
       key: "dates",
@@ -153,6 +178,9 @@ export default function Loans() {
     },
   ];
 
+    return isStaff ? [bookCol, memberCol, ...rest] : [bookCol, ...rest];
+  }, [isStaff, handleReturn]);
+
   const activeCount = loans.filter((l) => l.status === "BORROWED").length;
   const overdueCount = loans.filter((l) => l.status === "OVERDUE").length;
 
@@ -161,14 +189,46 @@ export default function Loans() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold text-slate-900">
-            Loan Distribution
+            {isStaff ? "Loan Distribution" : "My Loans"}
           </h1>
           <p className="text-sm text-slate-500">
-            Monitor active circulations and manage resource returns.
+            {isStaff
+              ? "Monitor active circulations and manage resource returns."
+              : "View your borrowed items and return them when due."}
           </p>
         </div>
 
-        <div className="flex bg-white rounded-xl border border-slate-200 p-1 shadow-sm">
+        <div className="flex flex-col items-end gap-3">
+          {isStaff && (
+            <div className="flex bg-white rounded-xl border border-slate-200 p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setStaffView("all")}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors",
+                  staffView === "all"
+                    ? "bg-primary text-white"
+                    : "text-slate-600 hover:bg-slate-50"
+                )}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setStaffView("overdue")}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors",
+                  staffView === "overdue"
+                    ? "bg-red-600 text-white"
+                    : "text-slate-600 hover:bg-slate-50"
+                )}
+              >
+                Overdue
+              </button>
+            </div>
+          )}
+
+          <div className="flex bg-white rounded-xl border border-slate-200 p-1 shadow-sm">
           <div className="px-6 py-2 text-center">
             <div className="text-xl font-bold text-blue-600">{activeCount}</div>
             <div className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">
@@ -191,6 +251,7 @@ export default function Loans() {
               Total
             </div>
           </div>
+        </div>
         </div>
       </header>
 
